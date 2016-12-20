@@ -24,6 +24,7 @@ var (
 	dovecotScopes = [...]string{"user"}
 )
 
+// Converts the output of Dovecot's EXPORT command to metrics.
 func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 	scanner := bufio.NewScanner(file)
 	scanner.Split(bufio.ScanLines)
@@ -35,14 +36,11 @@ func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 	columnNames := strings.Fields(scanner.Text())
 	columns := []*prometheus.Desc{}
 	for _, columnName := range columnNames[1:] {
-		columns = append(
-			columns,
-			prometheus.NewDesc(
-				prometheus.BuildFQName("dovecot", columnNames[0], columnName),
-				"Help text not provided by this exporter.",
-				[]string{columnNames[0]},
-				nil,
-			))
+		columns = append(columns, prometheus.NewDesc(
+			prometheus.BuildFQName("dovecot", columnNames[0], columnName),
+			"Help text not provided by this exporter.",
+			[]string{columnNames[0]},
+			nil))
 	}
 
 	// Read successive lines, containing the values.
