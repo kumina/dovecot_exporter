@@ -21,7 +21,7 @@ var (
 		"Whether scraping Dovecot's metrics was successful.",
 		[]string{"scope"},
 		nil)
-	dovecotScopes = [...]string{"domain", "ip", "user"}
+	dovecotScopes = [...]string{"user"}
 )
 
 func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
