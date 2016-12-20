@@ -28,3 +28,6 @@ dovecot_user_vol_cs{user="foo@example.com"} 2981
 dovecot_user_write_bytes{user="foo@example.com"} 961822
 dovecot_user_write_count{user="foo@example.com"} 4906
 ```
+
+The interpretation of these metrics is described on
+[the Dovecot wiki](https://wiki2.dovecot.org/Statistics#Statistics_gathered).
