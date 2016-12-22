@@ -4,7 +4,8 @@ This repository provides a `dovecot_exporter` utility that can be used
 to scrape statistics from Dovecot and export them as Prometheus metrics.
 It extracts the metrics that are exposed by
 [Dovecot's stats module](https://wiki2.dovecot.org/Statistics) by
-connecting to UNIX socket `/var/run/dovecot/stats`.
+connecting to UNIX socket `/var/run/dovecot/stats` and serves them as
+Prometheus metrics over TCP port 9166.
 
 The metrics provided by this exporter look like this:
 
