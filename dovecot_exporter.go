@@ -133,7 +133,7 @@ func (e *DovecotExporter) Collect(ch chan<- prometheus.Metric) {
 
 func main() {
 	var (
-		listenAddress = flag.String("web.listen-address", ":9199", "Address to listen on for web interface and telemetry.")
+		listenAddress = flag.String("web.listen-address", ":9166", "Address to listen on for web interface and telemetry.")
 		metricsPath   = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 		socketPath    = flag.String("dovecot.socket-path", "/var/run/dovecot/stats", "Path under which to expose metrics.")
 	)
