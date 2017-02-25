@@ -24,6 +24,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+        "errors"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -47,6 +48,9 @@ func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 		return fmt.Errorf("Failed to extract columns from input")
 	}
 	columnNames := strings.Fields(scanner.Text())
+        if( columnNames[0] != "user" ) {
+          return errors.New( "No data yet");
+        }
 	columns := []*prometheus.Desc{}
 	for _, columnName := range columnNames[1:] {
 		columns = append(columns, prometheus.NewDesc(
