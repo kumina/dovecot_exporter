@@ -47,6 +47,9 @@ func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 		return fmt.Errorf("Failed to extract columns from input")
 	}
 	columnNames := strings.Fields(scanner.Text())
+	if len(columnNames) < 2 {
+		return fmt.Errorf("Input does not provide any columns")
+	}
 	columns := []*prometheus.Desc{}
 	for _, columnName := range columnNames[1:] {
 		columns = append(columns, prometheus.NewDesc(
@@ -59,7 +62,7 @@ func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 	// Read successive lines, containing the values.
 	for scanner.Scan() {
 		values := strings.Fields(scanner.Text())
-		if len(values) < 1 {
+		if len(values) != len(columns) + 1 {
 			break
 		}
 		for i, value := range values[1:] {
