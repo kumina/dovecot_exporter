@@ -24,7 +24,6 @@ import (
 	"os"
 	"strconv"
 	"strings"
-        "errors"
 
 	"github.com/prometheus/client_golang/prometheus"
 )
@@ -49,7 +48,7 @@ func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 	}
 	columnNames := strings.Fields(scanner.Text())
         if( columnNames[0] != "user" ) {
-          return errors.New( "No data yet");
+          return fmt.Errorf( "No data yet");
         }
 	columns := []*prometheus.Desc{}
 	for _, columnName := range columnNames[1:] {
