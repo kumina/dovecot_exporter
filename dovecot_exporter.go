@@ -62,7 +62,7 @@ func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 	// Read successive lines, containing the values.
 	for scanner.Scan() {
 		values := strings.Fields(scanner.Text())
-		if len(values) != len(columns) + 1 {
+		if len(values) != len(columns)+1 {
 			break
 		}
 		for i, value := range values[1:] {
