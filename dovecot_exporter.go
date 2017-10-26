@@ -34,7 +34,7 @@ var (
 		"Whether scraping Dovecot's metrics was successful.",
 		[]string{"scope"},
 		nil)
-	dovecotScopes = [...]string{"user"}
+	dovecotScopes []string
 )
 
 // Converts the output of Dovecot's EXPORT command to metrics.
@@ -139,9 +139,11 @@ func main() {
 		listenAddress = flag.String("web.listen-address", ":9166", "Address to listen on for web interface and telemetry.")
 		metricsPath   = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
 		socketPath    = flag.String("dovecot.socket-path", "/var/run/dovecot/stats", "Path under which to expose metrics.")
+		scopesStr     = flag.String("dovecot.scopes", "user", "List of stats scopes to query (comma separated)")
 	)
 	flag.Parse()
 
+	dovecotScopes = strings.Split(*scopesStr, ",")
 	exporter := NewDovecotExporter(*socketPath)
 	prometheus.MustRegister(exporter)
 
