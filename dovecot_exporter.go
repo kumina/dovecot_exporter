@@ -80,14 +80,6 @@ func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 	return scanner.Err()
 }
 
-func CollectFromFile(path string, ch chan<- prometheus.Metric) error {
-	conn, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	return CollectFromReader(conn, ch)
-}
-
 func CollectFromSocket(path string, scope string, ch chan<- prometheus.Metric) error {
 	conn, err := net.Dial("unix", path)
 	if err != nil {
