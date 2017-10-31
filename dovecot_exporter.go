@@ -15,7 +15,6 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -26,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
 var (
@@ -62,7 +62,7 @@ func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 	// Read successive lines, containing the values.
 	for scanner.Scan() {
 		values := strings.Fields(scanner.Text())
-		if len(values) != len(columns) + 1 {
+		if len(values) != len(columns)+1 {
 			break
 		}
 		for i, value := range values[1:] {
@@ -136,11 +136,12 @@ func (e *DovecotExporter) Collect(ch chan<- prometheus.Metric) {
 
 func main() {
 	var (
-		listenAddress = flag.String("web.listen-address", ":9166", "Address to listen on for web interface and telemetry.")
-		metricsPath   = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-		socketPath    = flag.String("dovecot.socket-path", "/var/run/dovecot/stats", "Path under which to expose metrics.")
+		app           = kingpin.New("dovecot_exporter", "Prometheus metrics exporter for Dovecot")
+		listenAddress = app.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9166").String()
+		metricsPath   = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
+		socketPath    = app.Flag("dovecot.socket-path", "Path under which to expose metrics.").Default("/var/run/dovecot/stats").String()
 	)
-	flag.Parse()
+	kingpin.MustParse(app.Parse(os.Args[1:]))
 
 	exporter := NewDovecotExporter(*socketPath)
 	prometheus.MustRegister(exporter)
