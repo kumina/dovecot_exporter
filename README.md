@@ -7,6 +7,11 @@ It extracts the metrics that are exposed by
 connecting to UNIX socket `/var/run/dovecot/stats` and serves them as
 Prometheus metrics over TCP port 9166.
 
+A list of command line flags supported by this utility can be obtained
+by looking at this exporter's `main()` function. Do note that all
+command line flags require two leading dashes (e.g.,
+`--dovecot.scopes`).
+
 The metrics provided by this exporter look like this:
 
 ```
