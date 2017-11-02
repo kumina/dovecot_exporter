@@ -139,7 +139,7 @@ func main() {
 		listenAddress = app.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9166").String()
 		metricsPath   = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
 		socketPath    = app.Flag("dovecot.socket-path", "Path under which to expose metrics.").Default("/var/run/dovecot/stats").String()
-		dovecotScopes = app.Flag("dovecot.scopes", "Stats scopes to query (comma separated)").Default("global,user").String()
+		dovecotScopes = app.Flag("dovecot.scopes", "Stats scopes to query (comma separated)").Default("user").String()
 	)
 	kingpin.MustParse(app.Parse(os.Args[1:]))
 
