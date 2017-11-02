@@ -15,7 +15,6 @@ package main
 
 import (
 	"bufio"
-	"flag"
 	"fmt"
 	"io"
 	"log"
@@ -26,16 +25,14 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"gopkg.in/alecthomas/kingpin.v2"
 )
 
-var (
-	dovecotUpDesc = prometheus.NewDesc(
-		prometheus.BuildFQName("dovecot", "", "up"),
-		"Whether scraping Dovecot's metrics was successful.",
-		[]string{"scope"},
-		nil)
-	dovecotScopes = [...]string{"user"}
-)
+var dovecotUpDesc = prometheus.NewDesc(
+	prometheus.BuildFQName("dovecot", "", "up"),
+	"Whether scraping Dovecot's metrics was successful.",
+	[]string{"scope"},
+	nil)
 
 // Converts the output of Dovecot's EXPORT command to metrics.
 func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
@@ -62,7 +59,7 @@ func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 	// Read successive lines, containing the values.
 	for scanner.Scan() {
 		values := strings.Fields(scanner.Text())
-		if len(values) != len(columns) + 1 {
+		if len(values) != len(columns)+1 {
 			break
 		}
 		for i, value := range values[1:] {
@@ -101,11 +98,13 @@ func CollectFromSocket(path string, scope string, ch chan<- prometheus.Metric) e
 }
 
 type DovecotExporter struct {
+	scopes     []string
 	socketPath string
 }
 
-func NewDovecotExporter(socketPath string) *DovecotExporter {
+func NewDovecotExporter(socketPath string, scopes []string) *DovecotExporter {
 	return &DovecotExporter{
+		scopes:     scopes,
 		socketPath: socketPath,
 	}
 }
@@ -115,7 +114,7 @@ func (e *DovecotExporter) Describe(ch chan<- *prometheus.Desc) {
 }
 
 func (e *DovecotExporter) Collect(ch chan<- prometheus.Metric) {
-	for _, scope := range dovecotScopes {
+	for _, scope := range e.scopes {
 		err := CollectFromSocket(e.socketPath, scope, ch)
 		if err == nil {
 			ch <- prometheus.MustNewConstMetric(
@@ -136,13 +135,15 @@ func (e *DovecotExporter) Collect(ch chan<- prometheus.Metric) {
 
 func main() {
 	var (
-		listenAddress = flag.String("web.listen-address", ":9166", "Address to listen on for web interface and telemetry.")
-		metricsPath   = flag.String("web.telemetry-path", "/metrics", "Path under which to expose metrics.")
-		socketPath    = flag.String("dovecot.socket-path", "/var/run/dovecot/stats", "Path under which to expose metrics.")
+		app           = kingpin.New("dovecot_exporter", "Prometheus metrics exporter for Dovecot")
+		listenAddress = app.Flag("web.listen-address", "Address to listen on for web interface and telemetry.").Default(":9166").String()
+		metricsPath   = app.Flag("web.telemetry-path", "Path under which to expose metrics.").Default("/metrics").String()
+		socketPath    = app.Flag("dovecot.socket-path", "Path under which to expose metrics.").Default("/var/run/dovecot/stats").String()
+		dovecotScopes = app.Flag("dovecot.scopes", "Stats scopes to query (comma separated)").Default("global,user").String()
 	)
-	flag.Parse()
+	kingpin.MustParse(app.Parse(os.Args[1:]))
 
-	exporter := NewDovecotExporter(*socketPath)
+	exporter := NewDovecotExporter(*socketPath, strings.Split(*dovecotScopes, ","))
 	prometheus.MustRegister(exporter)
 
 	http.Handle(*metricsPath, prometheus.Handler())
