@@ -34,9 +34,89 @@ var dovecotUpDesc = prometheus.NewDesc(
 	[]string{"scope"},
 	nil)
 
-// Converts the output of Dovecot's EXPORT command to metrics.
-func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
-	scanner := bufio.NewScanner(file)
+// CollectFromReader converts the output of Dovecot's EXPORT command to metrics.
+func CollectFromReader(file io.Reader, scope string, ch chan<- prometheus.Metric) error {
+	if scope == "global" {
+		return collectGlobalMetricsFromReader(file, scope, ch)
+	}
+	return collectDetailMetricsFromReader(file, scope, ch)
+}
+
+// CollectFromFile collects dovecot statistics from the given file
+func CollectFromFile(path string, scope string, ch chan<- prometheus.Metric) error {
+	conn, err := os.Open(path)
+	if err != nil {
+		return err
+	}
+	return CollectFromReader(conn, scope, ch)
+}
+
+// CollectFromSocket collects statistics from dovecot's stats socket.
+func CollectFromSocket(path string, scope string, ch chan<- prometheus.Metric) error {
+	conn, err := net.Dial("unix", path)
+	if err != nil {
+		return err
+	}
+	_, err = conn.Write([]byte("EXPORT\t" + scope + "\n"))
+	if err != nil {
+		return err
+	}
+	return CollectFromReader(conn, scope, ch)
+}
+
+// collectGlobalMetricsFromReader collects dovecot "global" scope metrics from
+// the supplied reader.
+func collectGlobalMetricsFromReader(reader io.Reader, scope string, ch chan<- prometheus.Metric) error {
+	scanner := bufio.NewScanner(reader)
+	scanner.Split(bufio.ScanLines)
+
+	// Read first line of input, containing the aggregation and column names.
+	if !scanner.Scan() {
+		return fmt.Errorf("Failed to extract columns from input")
+	}
+	columnNames := strings.Fields(scanner.Text())
+	if len(columnNames) < 1 {
+		return fmt.Errorf("Input does not provide any columns")
+	}
+
+	columns := []*prometheus.Desc{}
+	for _, columnName := range columnNames {
+		columns = append(columns, prometheus.NewDesc(
+			prometheus.BuildFQName("dovecot", scope, columnName),
+			"Help text not provided by this exporter.",
+			[]string{},
+			nil))
+	}
+
+	// Global metrics only have a single row containing values following the
+	// line with column names
+	if !scanner.Scan() {
+		return scanner.Err()
+	}
+	values := strings.Fields(scanner.Text())
+
+	if len(values) != len(columns) {
+		return fmt.Errorf("error while parsing row: value count does not match column count")
+	}
+
+	for i, value := range values {
+		f, err := strconv.ParseFloat(value, 64)
+		if err != nil {
+			return err
+		}
+		ch <- prometheus.MustNewConstMetric(
+			columns[i],
+			prometheus.UntypedValue,
+			f,
+		)
+	}
+	return scanner.Err()
+}
+
+// collectGlobalMetricsFromReader collects dovecot "non-global" scope metrics
+// from the supplied reader.
+func collectDetailMetricsFromReader(reader io.Reader, scope string, ch chan<- prometheus.Metric) error {
+	scanner := bufio.NewScanner(reader)
 	scanner.Split(bufio.ScanLines)
 
 	// Read first line of input, containing the aggregation and column names.
@@ -47,6 +127,7 @@ func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 	if len(columnNames) < 2 {
 		return fmt.Errorf("Input does not provide any columns")
 	}
+
 	columns := []*prometheus.Desc{}
 	for _, columnName := range columnNames[1:] {
 		columns = append(columns, prometheus.NewDesc(
@@ -58,10 +139,16 @@ func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 
 	// Read successive lines, containing the values.
 	for scanner.Scan() {
-		values := strings.Fields(scanner.Text())
-		if len(values) != len(columns)+1 {
+		row := scanner.Text()
+		if strings.TrimSpace(row) == "" {
 			break
 		}
+
+		values := strings.Fields(row)
+		if len(values) != len(columns)+1 {
+			return fmt.Errorf("error while parsing rows: value count does not match column count")
+		}
+
 		for i, value := range values[1:] {
 			f, err := strconv.ParseFloat(value, 64)
 			if err != nil {
@@ -75,26 +162,6 @@ func CollectFromReader(file io.Reader, ch chan<- prometheus.Metric) error {
 		}
 	}
 	return scanner.Err()
-}
-
-func CollectFromFile(path string, ch chan<- prometheus.Metric) error {
-	conn, err := os.Open(path)
-	if err != nil {
-		return err
-	}
-	return CollectFromReader(conn, ch)
-}
-
-func CollectFromSocket(path string, scope string, ch chan<- prometheus.Metric) error {
-	conn, err := net.Dial("unix", path)
-	if err != nil {
-		return err
-	}
-	_, err = conn.Write([]byte("EXPORT\t" + scope + "\n"))
-	if err != nil {
-		return err
-	}
-	return CollectFromReader(conn, ch)
 }
 
 type DovecotExporter struct {
