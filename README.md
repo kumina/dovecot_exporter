@@ -3,7 +3,7 @@
 This repository provides a `dovecot_exporter` utility that can be used
 to scrape statistics from Dovecot and export them as Prometheus metrics.
 It extracts the metrics that are exposed by
-[Dovecot's stats module](https://wiki2.dovecot.org/Statistics) by
+[Dovecot's stats module](https://wiki2.dovecot.org/Statistics/Old) by
 connecting to UNIX socket `/var/run/dovecot/stats` and serves them as
 Prometheus metrics over TCP port 9166.
 
@@ -37,4 +37,4 @@ dovecot_user_write_count{user="foo@example.com"} 4906
 ```
 
 The interpretation of these metrics is described on
-[the Dovecot wiki](https://wiki2.dovecot.org/Statistics#Statistics_gathered).
+[the Dovecot wiki](https://wiki2.dovecot.org/Statistics/Old#Statistics_gathered).
