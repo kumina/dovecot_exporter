@@ -123,7 +123,7 @@ func collectDetailMetricsFromReader(reader io.Reader, scope string, ch chan<- pr
 	if !scanner.Scan() {
 		return fmt.Errorf("Failed to extract columns from input")
 	}
-	columnNames := strings.Fields(scanner.Text())
+	columnNames := strings.Split(scanner.Text(), "\t")
 	if len(columnNames) < 2 {
 		return fmt.Errorf("Input does not provide any columns")
 	}
@@ -144,9 +144,12 @@ func collectDetailMetricsFromReader(reader io.Reader, scope string, ch chan<- pr
 			break
 		}
 
-		values := strings.Fields(row)
+		values := strings.Split(row, "\t")
 		if len(values) != len(columns)+1 {
 			return fmt.Errorf("error while parsing rows: value count does not match column count")
+		}
+		if values[0] == "" {
+			values[0] = "empty_user"
 		}
 
 		for i, value := range values[1:] {
