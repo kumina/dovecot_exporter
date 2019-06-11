@@ -21,6 +21,8 @@ import (
 	"net"
 	"net/http"
 	"os"
+	"os/exec"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -167,6 +169,60 @@ func collectDetailMetricsFromReader(reader io.Reader, scope string, ch chan<- pr
 	return scanner.Err()
 }
 
+func collectReplicationInfo(ch chan<- prometheus.Metric) {
+
+	out, err := exec.Command("replicator", "status").Output()
+
+	if err != nil {
+		log.Printf("Failed to scrape replication stats: %s", err)
+	}
+
+	reQueued := regexp.MustCompile(`(Queued '(.+)' requests).+(\d)`)
+	reFailed := regexp.MustCompile(`(Waiting '(.+)' requests).+(\d)`)
+	reTotal := regexp.MustCompile(`(Total number of known users).+(\d)`)
+
+	for _, line := range strings.Split(strings.TrimSuffix(string(out), "\n"), "\n") {
+		match := reQueued.FindStringSubmatch(line)
+
+		if len(match) > 0 {
+			saveReplicationInfo("queued_"+match[2], match[1], match[3], ch)
+		}
+
+		match = reFailed.FindStringSubmatch(line)
+
+		if len(match) > 0 {
+			saveReplicationInfo("waiting_"+match[2], match[1], match[3], ch)
+		}
+
+		match = reTotal.FindStringSubmatch(line)
+
+		if len(match) > 0 {
+			saveReplicationInfo("total_users", match[1], match[2], ch)
+		}
+	}
+}
+
+func saveReplicationInfo(name string, helpText string, value string, ch chan<- prometheus.Metric) {
+	cleanName := strings.Replace(name, " ", "_", -1)
+
+	var desc = prometheus.NewDesc(
+		prometheus.BuildFQName("dovecot", "replication", cleanName),
+		helpText,
+		[]string{"scope"},
+		nil)
+
+	val, err := strconv.ParseFloat(value, 64)
+	if err != nil {
+		val = 0
+	}
+
+	ch <- prometheus.MustNewConstMetric(
+		desc,
+		prometheus.CounterValue,
+		val,
+		"global")
+}
+
 type DovecotExporter struct {
 	scopes     []string
 	socketPath string
@@ -192,6 +248,7 @@ func (e *DovecotExporter) Collect(ch chan<- prometheus.Metric) {
 				prometheus.GaugeValue,
 				1.0,
 				scope)
+
 		} else {
 			log.Printf("Failed to scrape socket: %s", err)
 			ch <- prometheus.MustNewConstMetric(
@@ -201,6 +258,8 @@ func (e *DovecotExporter) Collect(ch chan<- prometheus.Metric) {
 				scope)
 		}
 	}
+
+	collectReplicationInfo(ch)
 }
 
 func main() {
