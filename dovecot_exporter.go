@@ -224,8 +224,8 @@ func collectReplicationInfo(ch chan<- prometheus.Metric) {
 
 func collectQuotaInfo(ch chan<- prometheus.Metric) error {
 
-	//out, err := exec.Command("doveadm", "quota", "get", "-A").Output()
-	out, err := exec.Command("cat", "/home/zelic/quota.out").CombinedOutput()
+	out, err := exec.Command("doveadm", "quota", "get", "-A").Output()
+	//out, err := exec.Command("cat", "/home/zelic/quota.out").CombinedOutput()
 
 	if err != nil {
 		log.Printf("Failed to scrape quota stats: %s", err)
