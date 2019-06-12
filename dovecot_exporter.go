@@ -178,7 +178,6 @@ func collectDetailMetricsFromReader(reader io.Reader, scope string, ch chan<- pr
 func collectReplicationInfo(ch chan<- prometheus.Metric) {
 
 	out, err := exec.Command("doveadm", "replicator", "status").Output()
-	//out, err := exec.Command("cat", "/home/zelic/replicator.out").Output()
 
 	if err != nil {
 		log.Printf("Failed to scrape replication stats: %s", err)
@@ -225,7 +224,6 @@ func collectReplicationInfo(ch chan<- prometheus.Metric) {
 func collectQuotaInfo(ch chan<- prometheus.Metric) error {
 
 	out, err := exec.Command("doveadm", "quota", "get", "-A").Output()
-	//out, err := exec.Command("cat", "/home/zelic/quota.out").CombinedOutput()
 
 	if err != nil {
 		log.Printf("Failed to scrape quota stats: %s", err)
