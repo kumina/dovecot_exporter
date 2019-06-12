@@ -259,20 +259,15 @@ func collectQuotaInfo(ch chan<- prometheus.Metric) error {
 		}
 	}
 
-	log.Print(columns)
-
 	// Read successive lines, containing the values.
 	for scanner.Scan() {
-		log.Printf("testing...")
 		row := scanner.Text()
-		log.Printf(row)
 		if strings.TrimSpace(row) == "" {
 			break
 		}
 
 		values := strings.Fields(row)
 
-		log.Print("still works")
 		if values[0] == "" {
 			values[0] = "empty_user"
 		}
@@ -283,7 +278,6 @@ func collectQuotaInfo(ch chan<- prometheus.Metric) error {
 				f = 0
 			}
 
-			log.Print("added...")
 			ch <- prometheus.MustNewConstMetric(
 				column,
 				prometheus.UntypedValue,
