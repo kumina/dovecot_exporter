@@ -36,6 +36,12 @@ var dovecotUpDesc = prometheus.NewDesc(
 	[]string{"scope"},
 	nil)
 
+var dovecotReplicationUpDesc = prometheus.NewDesc(
+	prometheus.BuildFQName("dovecot", "replication", "up"),
+	"Whether scraping Dovecot's replication stats was successful.",
+	[]string{"scope"},
+	nil)
+
 // CollectFromReader converts the output of Dovecot's EXPORT command to metrics.
 func CollectFromReader(file io.Reader, scope string, ch chan<- prometheus.Metric) error {
 	if scope == "global" {
@@ -171,11 +177,25 @@ func collectDetailMetricsFromReader(reader io.Reader, scope string, ch chan<- pr
 
 func collectReplicationInfo(ch chan<- prometheus.Metric) {
 
-	out, err := exec.Command("replicator", "status").Output()
+	//out, err := exec.Command("doveadm", "replicator", "status").Output()
+	out, err := exec.Command("cat", "/home/zelic/replicator.out").Output()
 
 	if err != nil {
 		log.Printf("Failed to scrape replication stats: %s", err)
+		ch <- prometheus.MustNewConstMetric(
+			dovecotReplicationUpDesc,
+			prometheus.GaugeValue,
+			0.0,
+			"global")
+
+		return
 	}
+
+	ch <- prometheus.MustNewConstMetric(
+		dovecotReplicationUpDesc,
+		prometheus.GaugeValue,
+		1.0,
+		"global")
 
 	reQueued := regexp.MustCompile(`(Queued '(.+)' requests).+(\d)`)
 	reFailed := regexp.MustCompile(`(Waiting '(.+)' requests).+(\d)`)
@@ -200,6 +220,79 @@ func collectReplicationInfo(ch chan<- prometheus.Metric) {
 			saveReplicationInfo("total_users", match[1], match[2], ch)
 		}
 	}
+}
+
+func collectQuotaInfo(ch chan<- prometheus.Metric) error {
+
+	out, err := exec.Command("doveadm", "quota", "get", "-A").Output()
+	//out, err := exec.Command("cat", "/home/zelic/quota.out").CombinedOutput()
+
+	if err != nil {
+		log.Printf("Failed to scrape quota stats: %s", err)
+	}
+
+	scanner := bufio.NewScanner(strings.NewReader(string(out)))
+	scanner.Split(bufio.ScanLines)
+
+	// Read first line of input, containing the aggregation and column names.
+	if !scanner.Scan() {
+		return fmt.Errorf("Failed to extract columns from input")
+	}
+	columnNames := strings.Fields(scanner.Text())
+	if len(columnNames) < 2 {
+		return fmt.Errorf("Input does not provide any columns")
+	}
+
+	columns := make(map[string][]*prometheus.Desc)
+
+	colMap := make(map[string][]string)
+	colMap["STORAGE"] = []string{"storage", "storage_limit", "storage_percent"}
+	colMap["MESSAGE"] = []string{"message", "message_limit", "message_percent"}
+
+	for columnType, columbs := range colMap {
+		for _, columnName := range columbs {
+			columns[columnType] = append(columns[columnType], prometheus.NewDesc(
+				prometheus.BuildFQName("dovecot", "quota", columnName),
+				"Help text not provided by this exporter.",
+				[]string{"user"},
+				nil))
+		}
+	}
+
+	log.Print(columns)
+
+	// Read successive lines, containing the values.
+	for scanner.Scan() {
+		log.Printf("testing...")
+		row := scanner.Text()
+		log.Printf(row)
+		if strings.TrimSpace(row) == "" {
+			break
+		}
+
+		values := strings.Fields(row)
+
+		log.Print("still works")
+		if values[0] == "" {
+			values[0] = "empty_user"
+		}
+
+		for i, column := range columns[values[3]][0:] {
+			f, err := strconv.ParseFloat(values[4+i], 64)
+			if err != nil {
+				f = 0
+			}
+
+			log.Print("added...")
+			ch <- prometheus.MustNewConstMetric(
+				column,
+				prometheus.UntypedValue,
+				f,
+				values[0])
+		}
+	}
+	return scanner.Err()
+
 }
 
 func saveReplicationInfo(name string, helpText string, value string, ch chan<- prometheus.Metric) {
@@ -260,6 +353,10 @@ func (e *DovecotExporter) Collect(ch chan<- prometheus.Metric) {
 	}
 
 	collectReplicationInfo(ch)
+	err := collectQuotaInfo(ch)
+	if err != nil {
+		log.Printf("Failed to scrape quota: %s", err)
+	}
 }
 
 func main() {
