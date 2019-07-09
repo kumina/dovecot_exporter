@@ -25,6 +25,7 @@ import (
 	"strings"
 
 	"github.com/prometheus/client_golang/prometheus"
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"gopkg.in/alecthomas/kingpin.v2"
 )
 
@@ -216,7 +217,7 @@ func main() {
 	exporter := NewDovecotExporter(*socketPath, strings.Split(*dovecotScopes, ","))
 	prometheus.MustRegister(exporter)
 
-	http.Handle(*metricsPath, prometheus.Handler())
+	http.Handle(*metricsPath, promhttp.Handler())
 	http.HandleFunc("/", func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte(`
 			<html>
