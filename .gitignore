@@ -1,2 +1,4 @@
 /dovecot_exporter
 .idea/
+
+dist/
